@@ -1,0 +1,13 @@
+{
+  "name": "ShopifyChallenge",
+  "version": "1.0.0",
+  "main": "server.js",
+  "repository": "https://github.com/blove239/ShopifyChallenge",
+  "author": "Brandon Love",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.17.1",
+    "md5": "^2.3.0",
+    "sqlite3": "^5.0.0"
+  }
+}
