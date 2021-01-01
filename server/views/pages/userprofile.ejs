@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <%- include('../partials/head'); %>
+</head>
+
+<body class="container">
+
+    <header>
+        <%- include('../partials/header'); %>
+    </header>
+
+    <main>
+
+        <script>
+            let info = null;
+            info = typeof info !== 'object' ? {} : info;
+
+            // later on
+
+            if (info === "passwordupdated") {
+                alert("SUCK MY BALLS")
+            }
+
+        </script>
+        <div class="jumbotron">
+            <%if(query !==undefined && query.info === 'passwordupdated' ) {%>
+                <p>Password Successfully updated</p>
+            <%}%>
+            <h1>This is great</h1>
+            <p>
+                <%=username%>,
+            </p>
+           
+
+                    <p>
+                        <%=email%>
+                    </p>
+                    <% if(user !==undefined && username===user.username) { %>
+                        <a class="link" href="/changepassword">Change your password</a>
+                        <% } %>
+        </div>
+    </main>
+
+    <footer>
+        <%- include('../partials/footer'); %>
+    </footer>
+
+</body>
+
+</html>
