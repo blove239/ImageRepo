@@ -12,18 +12,6 @@
     </header>
 
     <main>
-
-        <script>
-            let info = null;
-            info = typeof info !== 'object' ? {} : info;
-
-            // later on
-
-            if (info === "passwordupdated") {
-                alert("SUCK MY BALLS")
-            }
-
-        </script>
         <div class="jumbotron">
             <%if(query !==undefined && query.info === 'passwordupdated' ) {%>
                 <p>Password Successfully updated</p>
@@ -36,9 +24,13 @@
 
                     <p>
                         <%=email%>
+                        <%=role%>
                     </p>
                     <% if(user !==undefined && username===user.username) { %>
-                        <a class="link" href="/changepassword">Change your password</a>
+                        <p>
+                            <a class="link" href="/changepassword">Change your password</a>
+                        </p>
+                        <a class="link" href="/upload">upload new image</a>
                         <% } %>
         </div>
     </main>

@@ -3,7 +3,10 @@ const passport = require('passport');
 const LocalStrategy = require('passport-local').Strategy;
 const cors = require('cors');
 const ejs = require('ejs');
+// delete flash too
 const flash = require('connect-flash');
+const fileUpload = require('express-fileupload');
+// delete this
 const cookieParser = require('cookie-parser');
 const db = require('./db/database');
 const pwdHash = require('./db/pwdHash');
@@ -12,13 +15,21 @@ const validate = require('./validate');
 const PORT = process.env.PORT || 8001;
 const app = express();
 
+app.use(fileUpload({
+    // add constants js , add filesize as constant
+    limits: {
+        fileSize: 10 * 1024 * 1024,
+        files: 25
+    }
+}));
+
 app.use(express.static(__dirname));
 const bodyParser = require('body-parser');
 const expressSession = require('express-session')({
+    // PROCESS ENV SECRET THIS 
     secret: 'secret',
     resave: false,
-    saveUninitialized: false,
-    cookie: { maxAge: 60000 }
+    saveUninitialized: false
 });
 
 app.use(bodyParser.json());
@@ -31,17 +42,9 @@ app.use(cookieParser('secret'));
 app.use(flash());
 app.set('view engine', 'ejs');
 
+
 passport.use(new LocalStrategy(function (username, password, done) {
-    let sql = 'SELECT salt FROM users WHERE username = ?';
-    db.unsafeDb.get(sql, username, function (err, row) {
-        if (!row) return done(null, false);
-        let hash = pwdHash.sha256(password, row.salt).passwordHash;
-        let sql2 = 'SELECT username, id FROM users WHERE username = ? AND password = ?'
-        db.unsafeDb.get(sql2, username, hash, function (err, row) {
-            if (!row) return done(null, false);
-            return done(null, row);
-        });
-    });
+    db.authUser(username, password, done);
 }));
 
 passport.serializeUser(function (user, done) {
@@ -49,11 +52,7 @@ passport.serializeUser(function (user, done) {
 });
 
 passport.deserializeUser(function (id, done) {
-    let sql = 'SELECT id, username FROM users WHERE id = ?';
-    db.unsafeDb.get(sql, id, function (err, row) {
-        if (!row) return done(null, false);
-        return done(null, row);
-    });
+    db.findById(id, done);
 });
 
 app.post('/login', (req, res, next) => {
@@ -77,16 +76,19 @@ app.post('/login', (req, res, next) => {
         })(req, res, next);
 });
 
-
-
 app.post('/signup', async (req, res, next) => {
-    try {
-        const { username, email, password } = req.body;
-        validate.signUp(username, email, password);
-        await db.signUp(username, email, password);
-        res.redirect("/login")
-    } catch (err) {
-        next(err);
+    if (req.user !== undefined) {
+        res.redirect(`/user/${req.body.username}`);
+    } else {
+        try {
+            const { username, email, password } = req.body;
+            validate.signUp(username, email, password);
+            await db.signUp(username, email, password);
+            res.redirect("/login")
+        } catch (err) {
+            // IMPLEMENT THIS ON THE FRONT END
+            res.redirect("/signup?error=uniqueconstraint");
+        }
     }
 });
 
@@ -94,34 +96,21 @@ app.post('/changepassword', async function (req, res) {
     if (req.user === undefined) {
         res.redirect('/');
     } else {
-        let sql = `UPDATE users
-        SET password = ?,
-        salt = ?
-        WHERE username = ?`;
-        let username = req.user.username;
-        let value = pwdHash.saltHashPassword(req.body.password);
-        let hashedPass = value.passwordHash;
-        let salt = value.salt;
-        let data = [hashedPass, salt, username];
-
-        const redirect = () => {
+        try {
+            const username = req.user.username;
+            const password = req.body.password;
+            await db.changePassword(username, password);
             res.redirect(`/user/${username}?info=passwordupdated`)
+        } catch (err) {
+            // implement in front end
+            res.redirect(`/user/${username}?info=passwordupdatefailed`)
         }
-
-        await new Promise((res, rej) => {
-            db.unsafeDb.get.run(sql, data, function (err) {
-                if (err) {
-                    rej(err);
-                    console.log(err)
-                } else {
-                    res(redirect());
-                }
-            });
-        });
     }
 });
 
 app.get('/', function (req, res) {
+    console.log(req.user)
+
     res.render('pages/index', { user: req.user });
 });
 
@@ -129,7 +118,7 @@ app.get('/login', function (req, res) {
     if (req.user === undefined) {
         res.render('pages/login', {
             user: req.user,
-            info: 'undefined'
+            info: undefined
         });
     } else {
         res.redirect(`/users/${req.user.username}`)
@@ -138,9 +127,12 @@ app.get('/login', function (req, res) {
 
 app.get('/signup', function (req, res) {
     if (req.user === undefined) {
-        res.render('pages/signup', { user: req.user });
+        res.render('pages/signup', {
+            user: req.user,
+            query: req.query
+        });
     } else {
-        res.redirect(`/users/${req.user.username}`)
+        res.redirect(`/user/${req.user.username}`)
     }
 });
 
@@ -150,34 +142,22 @@ app.get('/logout', function (req, res) {
 });
 
 app.get('/user/:username', async function (req, res) {
-    let sql = 'SELECT username, email FROM users WHERE username = ?';
-    let rowData = null;
-    let userFound = false;
-
-    await new Promise((res, rej) => {
-        db.unsafeDb.get(sql, req.params.username,
-            function (err, row) {
-                if (!row || err) {
-                    res(userFound = false);
-                } else {
-                    userFound = true;
-                    //
-                    res(rowData = row);
-                }
-            });
-    })
-
-    if (userFound) {
-        const query = req.query;
-        console.log(req.query);
+    try {
+        let userData = await db.findByUser(req.params.username);
         res.render('pages/userprofile', {
             user: req.user,
-            username: rowData.username,
-            email: rowData.email,
-            query: query
+            username: userData.username,
+            email: userData.email,
+            role: userData.role,
+            query: req.query
         });
-    } else {
-        res.render('pages/profilenotfound', { user: req.user })
+    } catch (err) {
+        // implement naming the unfound profile
+        // on the front end
+        res.render('pages/profilenotfound', {
+            user: req.user,
+            targetUser: req.params.username
+        })
     }
 });
 
@@ -190,5 +170,124 @@ app.get('/changepassword', function (req, res) {
         });
     }
 });
+
+//get unique URLs
+// /images/:id -> returns actual image file
+app.get('/images', async function (req, res) {
+    let username = undefined;
+    let role = undefined;
+    if (req.user) {
+        username = req.user.username
+        role = req.user.role
+    };
+    try {
+        let imageIDs = await db.getImageIDs(username, role);
+        res.send(imageIDs)
+    }
+    catch (err) {
+        return err;
+    }
+});
+
+app.get('/images/:imageId', async function (req, res) {
+    let username = undefined;
+    let role = undefined;
+    console.log("userreq", req.user)
+    if (req.user) {
+        username = req.user.username
+        role = req.user.role
+    };
+    try {
+        let image = await db.getImage(username, req.params.imageId, role)
+        res.send(image.image)
+    }
+    catch (err) {
+        console.log(err)
+        return err;
+    }
+})
+
+// should return IDs for that users particular images
+app.get('/user/:targetUser/images', async function (req, res) {
+    let username = undefined;
+    let role = undefined;
+    if (req.user) {
+        username = req.user.username
+        role = req.user.role
+    };
+    try {
+        let images = await db.getImagesByUser(username, req.params.targetUser, role);
+        res.send(images)
+    }
+    catch (err) {
+        return err;
+    }
+});
+
+app.get('/upload', function (req, res) {
+    if (req.user === undefined) {
+        res.render('pages/login', {
+            user: req.user,
+            info: undefined
+        });
+    } else {
+        res.render('pages/upload', {
+            status: undefined,
+            message: undefined,
+            user: req.user
+        });
+    }
+})
+
+app.post('/upload', async function (req, res) {
+    if (req.user === undefined) {
+        res.render('pages/login', {
+            user: req.user,
+            info: undefined
+        });
+    } else {
+        try {
+            if (!req.files) {
+                res.render('pages/upload', {
+                    status: false,
+                    message: 'No file uploaded',
+                    user: req.user
+                });
+            } else {
+                let data = [];
+
+                if (req.files.images.length === undefined) {
+
+                    let private = 0;
+                    await db.insertImage(req.user.username, req.files.images.data, private)
+                    data.push({
+                        name: req.files.images.name,
+                        mimetype: req.files.images.mimetype,
+                        size: req.files.images.size
+                    })
+                } else {
+                    for (image in req.files.images) {
+                        let private = 0;
+                        await db.insertImage(req.user.username, image.data, private)
+                        data.push({
+                            name: image.name,
+                            mimetype: image.mimetype,
+                            size: image.size
+                        })
+                    }
+                }
+                res.send({
+                    status: true,
+                    message: 'File is uploaded',
+                    data: data
+                });
+            }
+        } catch (err) {
+            console.log(err)
+            res.status(500).send(err);
+        }
+
+    }
+})
 
 app.listen(PORT, () => console.log('App listening on port ' + PORT));
