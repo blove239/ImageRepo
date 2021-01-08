@@ -38,12 +38,15 @@
                 </p>
                 <% } %>
                     <span id="message"></span>
-
                     <form action="/upload" method="POST" enctype="multipart/form-data" onSubmit="return check();">
-
                         <input type="file" id='fileinput' name='images' accept="image/*" multiple>
-                        <button type="submit" id='submitbtn' class="btn btn-warning btn-lg">Upload</button>
-
+                        <div>
+                            <button type="submit" id='submitbtn' class="btn btn-warning btn-lg">Upload</button>
+                        </div>
+                        <div>
+                            <input type="checkbox" id="permission" name="permission" value="private">
+                            <label for="permission">Tick box to make uploaded pictures private</label><br>
+                        </div>
                     </form>
 
         </div>

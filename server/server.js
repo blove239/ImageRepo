@@ -109,8 +109,6 @@ app.post('/changepassword', async function (req, res) {
 });
 
 app.get('/', function (req, res) {
-    console.log(req.user)
-
     res.render('pages/index', { user: req.user });
 });
 
@@ -192,7 +190,6 @@ app.get('/images', async function (req, res) {
 app.get('/images/:imageId', async function (req, res) {
     let username = undefined;
     let role = undefined;
-    console.log("userreq", req.user)
     if (req.user) {
         username = req.user.username
         role = req.user.role
@@ -216,8 +213,8 @@ app.get('/user/:targetUser/images', async function (req, res) {
         role = req.user.role
     };
     try {
-        let images = await db.getImagesByUser(username, req.params.targetUser, role);
-        res.send(images)
+        let imageIDs = await db.getImagesByUser(username, req.params.targetUser, role);
+        res.send(imageIDs)
     }
     catch (err) {
         return err;
@@ -254,33 +251,37 @@ app.post('/upload', async function (req, res) {
                     user: req.user
                 });
             } else {
-                let data = [];
-
+                let success = [];
+                let failure = [];
+                let private = 1;
+                if (req.body.permission === undefined) { private = 0; }
                 if (req.files.images.length === undefined) {
-
-                    let private = 0;
+                    /*
+                    "image/jpeg"
+                    "image/gif"
+                    "image/png"
+                    */
                     await db.insertImage(req.user.username, req.files.images.data, private)
-                    data.push({
+                    success.push({
                         name: req.files.images.name,
                         mimetype: req.files.images.mimetype,
                         size: req.files.images.size
-                    })
+                    });
                 } else {
-                    for (image in req.files.images) {
-                        let private = 0;
+                    req.files.images.forEach(async function (image) {
                         await db.insertImage(req.user.username, image.data, private)
-                        data.push({
-                            name: image.name,
-                            mimetype: image.mimetype,
-                            size: image.size
-                        })
-                    }
+                            .then(success.push({
+                                name: image.name,
+                                mimetype: image.mimetype,
+                                size: image.size
+                            }))
+                    });
+                    res.send({
+                        status: true,
+                        message: 'File is uploaded',
+                        data: success
+                    });
                 }
-                res.send({
-                    status: true,
-                    message: 'File is uploaded',
-                    data: data
-                });
             }
         } catch (err) {
             console.log(err)

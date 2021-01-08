@@ -164,18 +164,19 @@ dal.getImageIDs = async (username, role) => {
 };
 
 dal.getImage = async (username, imageId, role) => {
-    let publicSql = 'SELECT image FROM images WHERE id = ? AND private = 0;'
-    let privateSql = 'SELECT image FROM images WHERE id = ?;'
+    let publicSql = 'SELECT image, username FROM images WHERE id = ? AND private = 0;'
+    let privateSql = 'SELECT image, username FROM images WHERE id = ?;'
     try {
         if (!username) {
             let image = await asyncGet(publicSql, imageId)
             return image;
         }
         if (role === 'admin') {
-            let image = await asyncGet(publicSql, imageId)
+            let image = await asyncGet(privateSql, imageId)
             return image;
-        } if (userData.username === targetUser) {
-            let image = await asyncGet(publicSql, imageId)
+        } 
+        let image = await asyncGet(privateSql, imageId)
+        if (username === image.username) {
             return image;
         }
         else {
@@ -183,7 +184,6 @@ dal.getImage = async (username, imageId, role) => {
             return image;
         }
     } catch (err) {
-        console.log("err", err)
         return err;
     }
 };
@@ -202,7 +202,7 @@ dal.getImagesByUser = async (username, targetUser, role) => {
         }
         if (role === 'admin') {
             return asyncAll(privateImagesSql, targetUser);
-        } if (userData.username === targetUser) {
+        } if (username === targetUser) {
             return asyncAll(privateImagesSql, targetUser);
         } else {
             return asyncAll(publiceImagesSql, targetUser);
