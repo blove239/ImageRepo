@@ -1,0 +1,1 @@
+exports.FIVE_HUNDRED_KILOBYTES = 512 * 1024;

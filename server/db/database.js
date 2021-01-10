@@ -37,6 +37,7 @@ let db = new sqlite3.Database(DBSOURCE, (err) => {
                 name TEXT,
                 description TEXT,
                 image BLOB NOT NULL,
+                mimetype TEXT,
                 private INTEGER NOT NULL,
                 username TEXT NOT NULL,
                 FOREIGN KEY(username) REFERENCES users(username)
@@ -60,8 +61,6 @@ let db = new sqlite3.Database(DBSOURCE, (err) => {
 });
 
 const dal = {};
-// delete me
-dal.unsafeDb = db;
 
 const asyncRun = (sql, data) => {
     return new Promise((res, rej) => {
@@ -78,8 +77,7 @@ const asyncRun = (sql, data) => {
 const asyncGet = (sql, data) => {
     return new Promise((res, rej) => {
         db.get(sql, data, (err, row) => {
-            if (!row || err) {
-                console.log("async get", row)
+            if (err) {
                 rej(err);
             } else {
                 res(row);
@@ -91,7 +89,7 @@ const asyncGet = (sql, data) => {
 const asyncAll = (sql, data) => {
     return new Promise((res, rej) => {
         db.all(sql, data, (err, row) => {
-            if (!row || err) {
+            if (err) {
                 rej(err);
             } else {
                 res(row);
@@ -103,23 +101,20 @@ const asyncAll = (sql, data) => {
 dal.authUser = (username, password, done) => {
     let sql = 'SELECT salt FROM users WHERE username = ?';
     db.get(sql, username, function (err, row) {
-        if (!row) return done(null, false);
+        if (!row) { return done(null, false) };
         let hash = pwdHash.sha256(password, row.salt).passwordHash;
         let sql2 = 'SELECT username, id, role FROM users WHERE username = ? AND password = ?'
         db.get(sql2, username, hash, function (err, row) {
-            console.log(row)
-            if (!row) return done(null, false);
-            return done(null, row);
+            return done(null, row || false);
         });
     })
 }
 dal.findById = (id, done) => {
     let sql = 'SELECT username, id, role FROM users WHERE id = ?';
     db.get(sql, id, function (err, row) {
-        if (!row) return done(null, false);
-        return done(null, row);
+        return done(null, row || false);
     });
-}
+};
 
 dal.signUp = (username, email, password) => {
     let sql = 'INSERT INTO users (username, email, password, salt) VALUES (?,?,?,?)'
@@ -127,7 +122,7 @@ dal.signUp = (username, email, password) => {
     let hashedPass = value.passwordHash;
     let salt = value.salt;
     return asyncRun(sql, [username, email, hashedPass, salt])
-}
+};
 
 dal.changePassword = (username, password) => {
     let sql = `UPDATE users
@@ -138,7 +133,7 @@ dal.changePassword = (username, password) => {
     let hashedPass = value.passwordHash;
     let salt = value.salt;
     return asyncRun(sql, [hashedPass, salt, username]);
-}
+};
 
 dal.findByUser = (username) => {
     let sql = 'SELECT username, email, role FROM users WHERE username = ?';
@@ -163,26 +158,15 @@ dal.getImageIDs = async (username, role) => {
     }
 };
 
-dal.getImage = async (username, imageId, role) => {
-    let publicSql = 'SELECT image, username FROM images WHERE id = ? AND private = 0;'
-    let privateSql = 'SELECT image, username FROM images WHERE id = ?;'
+dal.getImage = async (imageId, mimetype, username = undefined, role = undefined) => {
+    let sql = `SELECT image FROM images WHERE id = ? AND mimetype = ? AND
+    (
+        (private = 0)
+        OR
+        (? = 'admin' OR username = ?)    
+    )`
     try {
-        if (!username) {
-            let image = await asyncGet(publicSql, imageId)
-            return image;
-        }
-        if (role === 'admin') {
-            let image = await asyncGet(privateSql, imageId)
-            return image;
-        } 
-        let image = await asyncGet(privateSql, imageId)
-        if (username === image.username) {
-            return image;
-        }
-        else {
-            let image = await asyncGet(publicSql, imageId)
-            return image;
-        }
+        return await asyncGet(sql, [imageId, mimetype, role, username])
     } catch (err) {
         return err;
     }
@@ -197,30 +181,25 @@ dal.getImagesByUser = async (username, targetUser, role) => {
     FROM images 
     WHERE username = ?;`
     try {
-        if (!username) {
-            return asyncAll(publicImagesSql, targetUser);
-        }
-        if (role === 'admin') {
-            return asyncAll(privateImagesSql, targetUser);
-        } if (username === targetUser) {
+        if (role === 'admin' || username === targetUser) {
             return asyncAll(privateImagesSql, targetUser);
         } else {
-            return asyncAll(publiceImagesSql, targetUser);
+            return asyncAll(publicImagesSql, targetUser);
         }
     } catch (err) {
         return err;
     }
-}
+};
 
-dal.insertImage = async (username, image, private) => {
-    let sql = 'INSERT INTO images (username, image, private) VALUES (?,?,?)'
+dal.insertImage = async (username, image, private, mimetype) => {
+    let sql = 'INSERT INTO images (username, image, private, mimetype) VALUES (?,?,?,?)'
     try {
-        await asyncRun(sql, [username, image, private]);
+        await asyncRun(sql, [username, image, private, mimetype]);
     } catch (err) {
         console.log(err);
         return err;
     }
-}
+};
 
 db.all('SELECT * FROM users', function (err, row) {
     console.log(row);

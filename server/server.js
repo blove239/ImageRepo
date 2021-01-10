@@ -10,15 +10,15 @@ const fileUpload = require('express-fileupload');
 const cookieParser = require('cookie-parser');
 const db = require('./db/database');
 const pwdHash = require('./db/pwdHash');
-const validate = require('./validate');
-
+const validate = require('./utils/validate');
+const { FIVE_HUNDRED_KILOBYTES } = require('./utils/constants')
 const PORT = process.env.PORT || 8001;
 const app = express();
 
 app.use(fileUpload({
     // add constants js , add filesize as constant
     limits: {
-        fileSize: 10 * 1024 * 1024,
+        fileSize: FIVE_HUNDRED_KILOBYTES,
         files: 25
     }
 }));
@@ -42,7 +42,6 @@ app.use(cookieParser('secret'));
 app.use(flash());
 app.set('view engine', 'ejs');
 
-
 passport.use(new LocalStrategy(function (username, password, done) {
     db.authUser(username, password, done);
 }));
@@ -54,6 +53,32 @@ passport.serializeUser(function (user, done) {
 passport.deserializeUser(function (id, done) {
     db.findById(id, done);
 });
+
+const doIfLoggedIn = (req, res, cb) => {
+    if (!req.user) {
+        res.render('pages/login', {
+            user: undefined,
+            info: undefined
+        });
+    } else {
+        if (typeof cb === 'function') {
+            cb();
+        }
+    }
+};
+
+const extToMimetype = (ext) => {
+    if (ext === 'jpg') {
+        return "image/jpeg"
+    }
+    if (ext === 'gif') {
+        return "image/gif"
+    }
+    if (ext === 'png') {
+        return "image/png"
+    }
+    return undefined;
+};
 
 app.post('/login', (req, res, next) => {
     passport.authenticate('local',
@@ -187,20 +212,27 @@ app.get('/images', async function (req, res) {
     }
 });
 
-app.get('/images/:imageId', async function (req, res) {
-    let username = undefined;
-    let role = undefined;
-    if (req.user) {
-        username = req.user.username
-        role = req.user.role
-    };
+
+
+app.get('/images/:imageId.:ext', async function (req, res) {
+    console.log(req.params.ext)
     try {
-        let image = await db.getImage(username, req.params.imageId, role)
-        res.send(image.image)
+        
+        let image = req.user ?
+            await db.getImage(
+                req.params.imageId,
+                extToMimetype(req.params.ext),
+                req.user.username,
+                req.user.role)
+            : await db.getImage(req.params.imageId, extToMimetype(req.params.ext))
+        if (image && image.image) {
+            res.set({ 'Content-Type': image.mimetype }).send(image.image)
+        } else {
+            res.status(404).send("404 IMAGE NOT FOUND")
+        }
     }
     catch (err) {
-        console.log(err)
-        return err;
+        res.send(err);
     }
 })
 
@@ -217,23 +249,19 @@ app.get('/user/:targetUser/images', async function (req, res) {
         res.send(imageIDs)
     }
     catch (err) {
-        return err;
+        res.send(err);
     }
 });
 
+
+
 app.get('/upload', function (req, res) {
-    if (req.user === undefined) {
-        res.render('pages/login', {
-            user: req.user,
-            info: undefined
-        });
-    } else {
-        res.render('pages/upload', {
-            status: undefined,
-            message: undefined,
-            user: req.user
-        });
-    }
+    doIfLoggedIn(req, res, () => res.render('pages/upload', {
+        message: undefined,
+        user: req.user,
+        success: undefined,
+        failure: undefined
+    }))
 })
 
 app.post('/upload', async function (req, res) {
@@ -246,48 +274,42 @@ app.post('/upload', async function (req, res) {
         try {
             if (!req.files) {
                 res.render('pages/upload', {
-                    status: false,
                     message: 'No file uploaded',
-                    user: req.user
+                    user: req.user,
+                    success: undefined,
+                    failure: undefined
                 });
             } else {
                 let success = [];
                 let failure = [];
+                // use TF here convert to 0/1 in db
                 let private = 1;
                 if (req.body.permission === undefined) { private = 0; }
-                if (req.files.images.length === undefined) {
-                    /*
-                    "image/jpeg"
-                    "image/gif"
-                    "image/png"
-                    */
-                    await db.insertImage(req.user.username, req.files.images.data, private)
-                    success.push({
-                        name: req.files.images.name,
-                        mimetype: req.files.images.mimetype,
-                        size: req.files.images.size
-                    });
-                } else {
-                    req.files.images.forEach(async function (image) {
-                        await db.insertImage(req.user.username, image.data, private)
+                const imageList = req.files.images.length === undefined ? [req.files.images] : req.files.images;
+                imageList.forEach(async function (image) {
+                    try {
+                        validate.verifyImage(image.name, image.mimetype, image.size)
+                        await db.insertImage(req.user.username, image.data, private, image.mimetype)
                             .then(success.push({
                                 name: image.name,
                                 mimetype: image.mimetype,
                                 size: image.size
                             }))
-                    });
-                    res.send({
-                        status: true,
-                        message: 'File is uploaded',
-                        data: success
-                    });
-                }
+                    } catch (err) {
+                        failure.push(err.message)
+                    }
+                });
+                res.render('pages/upload', {
+                    message: undefined,
+                    user: req.user,
+                    success: success,
+                    failure: failure
+                });
             }
         } catch (err) {
             console.log(err)
             res.status(500).send(err);
         }
-
     }
 })
 
