@@ -19,7 +19,7 @@ app.use(fileUpload({
     // add constants js , add filesize as constant
     limits: {
         fileSize: FIVE_HUNDRED_KILOBYTES,
-        files: 25
+        files: 96
     }
 }));
 
@@ -133,8 +133,17 @@ app.post('/changepassword', async function (req, res) {
     }
 });
 
-app.get('/', function (req, res) {
-    res.render('pages/index', { user: req.user });
+app.get('/', async function (req, res) {
+    let imageIDs = req.user ?
+        await db.getImageIDs(
+            req.user.username,
+            req.user.role)
+        : await db.getImageIDs();
+
+    res.render('pages/index', {
+        user: req.user,
+        imageIDs: imageIDs
+    });
 });
 
 app.get('/login', function (req, res) {
@@ -164,17 +173,24 @@ app.get('/logout', function (req, res) {
     res.redirect('/');
 });
 
-app.get('/user/:username', async function (req, res) {
+app.get('/user/:targetUser', async function (req, res) {
     try {
-        let userData = await db.findByUser(req.params.username);
+        let userData = await db.findByUser(req.params.targetUser);
+        
+        let imageIDs = req.user ? await db.getImagesByUser(
+            req.params.targetUser,
+            req.user.username,
+            req.user.role)
+            : await db.getImagesByUser(req.params.targetUser);
+
         res.render('pages/userprofile', {
             user: req.user,
             username: userData.username,
-            email: userData.email,
-            role: userData.role,
+            imageIDs: imageIDs,
             query: req.query
         });
     } catch (err) {
+        console.log(err)
         // implement naming the unfound profile
         // on the front end
         res.render('pages/profilenotfound', {
@@ -194,30 +210,8 @@ app.get('/changepassword', function (req, res) {
     }
 });
 
-//get unique URLs
-// /images/:id -> returns actual image file
-app.get('/images', async function (req, res) {
-    let username = undefined;
-    let role = undefined;
-    if (req.user) {
-        username = req.user.username
-        role = req.user.role
-    };
-    try {
-        let imageIDs = await db.getImageIDs(username, role);
-        res.send(imageIDs)
-    }
-    catch (err) {
-        return err;
-    }
-});
-
-
-
 app.get('/images/:imageId.:ext', async function (req, res) {
-    console.log(req.params.ext)
     try {
-        
         let image = req.user ?
             await db.getImage(
                 req.params.imageId,
@@ -232,7 +226,8 @@ app.get('/images/:imageId.:ext', async function (req, res) {
         }
     }
     catch (err) {
-        res.send(err);
+        console.log(err)
+        res.status(500).send("500 INTERNAL SERVER ERROR")
     }
 })
 
@@ -245,11 +240,16 @@ app.get('/user/:targetUser/images', async function (req, res) {
         role = req.user.role
     };
     try {
-        let imageIDs = await db.getImagesByUser(username, req.params.targetUser, role);
+        let imageIDs = req.user ? await db.getImagesByUser(
+            req.params.targetUser,
+            req.user.username,
+            req.user.role)
+            : await db.getImagesByUser(req.params.targetUser);
         res.send(imageIDs)
     }
     catch (err) {
-        res.send(err);
+        console.log(err)
+        res.status(500).send("500 INTERNAL SERVER ERROR")
     }
 });
 
@@ -259,8 +259,7 @@ app.get('/upload', function (req, res) {
     doIfLoggedIn(req, res, () => res.render('pages/upload', {
         message: undefined,
         user: req.user,
-        success: undefined,
-        failure: undefined
+        status: []
     }))
 })
 
@@ -276,41 +275,54 @@ app.post('/upload', async function (req, res) {
                 res.render('pages/upload', {
                     message: 'No file uploaded',
                     user: req.user,
-                    success: undefined,
-                    failure: undefined
+                    status: []
                 });
             } else {
-                let success = [];
-                let failure = [];
-                // use TF here convert to 0/1 in db
-                let private = 1;
-                if (req.body.permission === undefined) { private = 0; }
+                let status = [];
+                let private = true;
+                if (req.body.permission === undefined) { private = false; }
                 const imageList = req.files.images.length === undefined ? [req.files.images] : req.files.images;
-                imageList.forEach(async function (image) {
+                imageList.forEach(async (image) => {
                     try {
                         validate.verifyImage(image.name, image.mimetype, image.size)
                         await db.insertImage(req.user.username, image.data, private, image.mimetype)
-                            .then(success.push({
-                                name: image.name,
-                                mimetype: image.mimetype,
-                                size: image.size
+                            .then(status.push({
+                                status: true,
+                                message: `${image.name} uploaded successfully`
                             }))
                     } catch (err) {
-                        failure.push(err.message)
+                        status.push({
+                            status: false,
+                            message: err.message
+                        })
                     }
                 });
                 res.render('pages/upload', {
                     message: undefined,
                     user: req.user,
-                    success: success,
-                    failure: failure
+                    status: status
                 });
             }
         } catch (err) {
             console.log(err)
-            res.status(500).send(err);
+            res.status(500).send("500 INTERNAL SERVER ERROR");
         }
     }
-})
+});
+
+app.post('/delete', function (req, res) {
+    if (req.user === undefined) {
+        res.render('pages/login', {
+            user: req.user,
+            info: undefined
+        });
+    } else {
+        if(!req.body.imageId){res.send("No Images Selected")}
+        !req.body.imageId.length ? req.body.imageId: [req.body.imageId]
+        req.body.imageId.forEach(async (imageId) => {
+            await db.deleteImage(req.user, imageId);
+        })
+    }
+});
 
 app.listen(PORT, () => console.log('App listening on port ' + PORT));

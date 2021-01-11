@@ -2,33 +2,25 @@
 <html lang="en">
 
 <head>
-    <%- include('../partials/head'); %>
+    <%- include("../partials/head"); %>
         <script>
             const check = () => {
-                let input = document.getElementById('fileinput');
+                let input = document.getElementById("fileinput");
                 if (!input.files[0]) {
-                    document.getElementById('message').innerHTML = "Please select a file before clicking 'Load'";
+                    document.getElementById("message").innerHTML = "Please select a file before clicking 'Upload'";
                     return false;
                 }
-
                 else {
-                    let file = input.files[0];
-                    document.getElementById('message').innerHTML = file.size;
                     return true;
                 }
             };
-
-
-
         </script>
 </head>
 
 <body class="container">
-
     <header>
-        <%- include('../partials/header'); %>
+        <%- include("../partials/header"); %>
     </header>
-
     <main>
         <div class="jumbotron">
             <h1>Upload Image</h1>
@@ -39,13 +31,20 @@
                 <% } %>
                     <span id="message"></span>
                     <form action="/upload" method="POST" enctype="multipart/form-data" onSubmit="return check();">
-                        <input type="file" id='fileinput' name='images' accept="image/*" multiple>
+                        <input type="file" id="fileinput" name="images" accept="image/*" multiple>
                         <div>
-                            <button type="submit" id='submitbtn' class="btn btn-warning btn-lg">Upload</button>
+                            <button type="submit" id="submitbtn" class="btn btn-warning btn-lg">Upload</button>
                         </div>
                         <div>
                             <input type="checkbox" id="permission" name="permission" value="private">
                             <label for="permission">Make uploaded pictures private</label><br>
+                        </div>
+                        <div class="container">
+                            <% status.forEach((item)=> { %>
+                                <div style=<%= item.status ? "color:green;" : "color:red;" %> class="row">
+                                    <%= item.message %>
+                                </div>
+                                <% }) %>
                         </div>
                     </form>
 

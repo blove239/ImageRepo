@@ -2,28 +2,29 @@
 <html lang="en">
 
 <head>
-    <%- include('../partials/head'); %>
+    <%- include("../partials/head"); %>
 
 </head>
 
 <body class="container">
 
     <header>
-        <%- include('../partials/header'); %>
+        <%- include("../partials/header"); %>
     </header>
 
     <main>
-        <div class="jumbotron">
-            <h1>This is great</h1>
-            <p>Welcome to templating using EJS</p>
-        </div>
-
-        <img style='height:100px'src='images/35' />
-
+        <% imageIDs.forEach((image)=> { %>
+            <% let mimeToExt=new RegExp("^[^/]+/", "i" ) %>
+                <% let ext=image.mimetype.replace(mimeToExt,"") %>
+                    <% ext=(ext==="jpeg" ) ? "jpg" : ext %>
+                        <a href="images/<%= image.id %>.<%= ext %>">
+                            <img style="height:100px" src="images/<%= image.id %>.<%= ext %>" />
+                        </a>
+                        <% })%>
     </main>
 
     <footer>
-        <%- include('../partials/footer'); %>
+        <%- include("../partials/footer"); %>
     </footer>
 
 </body>

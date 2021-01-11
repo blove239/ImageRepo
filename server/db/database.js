@@ -45,16 +45,6 @@ let db = new sqlite3.Database(DBSOURCE, (err) => {
             (err) => {
                 if (err) {
                     console.log(err)
-                } else {
-                    // Table just created, creating some rows
-                    let insert = 'INSERT INTO images (name, description, image, private, username) VALUES (?,?,?,?,?)'
-                    db.run(insert, ["image1", "ITS A PIC", "the pic", 0, "blove239"])
-                    db.run(insert, ["image2", "second pic", "the pic!", 1, "blove239"])
-                    db.run(insert, ["image3", "second pic", "the pic!", 0, "admin"])
-                    db.run(insert, ["image4", "second pic", "the pic!", 0, "admin"])
-                    db.run(insert, ["image5", "second pic", "the pic!", 0, "user"])
-                    db.run(insert, ["image6", "second pic", "the pic!", 0, "user"])
-
                 }
             });
     }
@@ -140,9 +130,9 @@ dal.findByUser = (username) => {
     return asyncGet(sql, username);
 };
 
-dal.getImageIDs = async (username, role) => {
-    let publicSql = 'SELECT id FROM images WHERE private = 0;'
-    let privateSql = 'SELECT id FROM images'
+dal.getImageIDs = async (username = undefined, role = undefined) => {
+    let publicSql = 'SELECT id, mimetype FROM images WHERE private = 0;'
+    let privateSql = 'SELECT id, mimetype FROM images'
     try {
         if (!username) {
             return asyncAll(publicSql);
@@ -172,12 +162,12 @@ dal.getImage = async (imageId, mimetype, username = undefined, role = undefined)
     }
 };
 
-dal.getImagesByUser = async (username, targetUser, role) => {
-    let publicImagesSql = `SELECT name, description, image, private, username 
+dal.getImagesByUser = async (targetUser, username = undefined, role = undefined) => {
+    let publicImagesSql = `SELECT id, mimetype 
     FROM images 
     WHERE private = 0 AND
     username = ?;`
-    let privateImagesSql = `SELECT name, description, image, private, username 
+    let privateImagesSql = `SELECT id, mimetype 
     FROM images 
     WHERE username = ?;`
     try {
@@ -193,13 +183,26 @@ dal.getImagesByUser = async (username, targetUser, role) => {
 
 dal.insertImage = async (username, image, private, mimetype) => {
     let sql = 'INSERT INTO images (username, image, private, mimetype) VALUES (?,?,?,?)'
+    let sqlliteBool = private ? 1 : 0;
     try {
-        await asyncRun(sql, [username, image, private, mimetype]);
+        await asyncRun(sql, [username, image, sqlliteBool, mimetype]);
     } catch (err) {
-        console.log(err);
         return err;
     }
 };
+
+dal.deleteImage = async (username, imageId) => {
+    let adminSql = 'DELETE FROM images WHERE id = ?'
+    let sql = 'DELETE FROM images WHERE username = ? AND id = ?'
+
+    try {
+        username.role === 'admin' ? await asyncRun(adminSql, imageId)
+            : await asyncRun(sql, [username, imageId])
+
+    } catch (err) {
+        return err;
+    }
+}
 
 db.all('SELECT * FROM users', function (err, row) {
     console.log(row);
