@@ -1,9 +1,10 @@
-const sqlite3 = require('sqlite3').verbose()
-const DBSOURCE = "db.sqlite"
-const pwdHash = require('./pwdHash')
+const sqlite3 = require('sqlite3').verbose();
+const DBSOURCE = "db.sqlite";
+const pwdHash = require('./pwdHash');
+require('dotenv').config();
 
-const testpwd = pwdHash.saltHashPassword('123');
-const testpwd2 = pwdHash.saltHashPassword('123');
+
+const adminPwd = pwdHash.saltHashPassword(process.env.ADMIN_PWD);
 
 let db = new sqlite3.Database(DBSOURCE, (err) => {
     if (err) {
@@ -27,15 +28,12 @@ let db = new sqlite3.Database(DBSOURCE, (err) => {
                 } else {
                     // Table just created, creating some rows
                     let insert = 'INSERT INTO users (username, email, password, salt, role) VALUES (?,?,?,?,?)'
-                    db.run(insert, ["admin", "admin@example.com", testpwd.passwordHash, testpwd.salt, "admin"])
-                    db.run(insert, ["user", "user@example.com", testpwd2.passwordHash, testpwd2.salt])
+                    db.run(insert, ["admin", "admin@example.com", adminPwd.passwordHash, adminPwd.salt, "admin"])
                 }
             });
 
         db.run(`CREATE TABLE images (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT,
-                description TEXT,
                 image BLOB NOT NULL,
                 mimetype TEXT,
                 private INTEGER NOT NULL,
