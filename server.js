@@ -3,20 +3,16 @@ const passport = require('passport');
 const LocalStrategy = require('passport-local').Strategy;
 const cors = require('cors');
 const ejs = require('ejs');
-// delete flash too
-const flash = require('connect-flash');
 const fileUpload = require('express-fileupload');
-// delete this
-const cookieParser = require('cookie-parser');
 const db = require('./db/database');
 const pwdHash = require('./db/pwdHash');
 const validate = require('./utils/validate');
+require('dotenv').config()
 const { FIVE_HUNDRED_KILOBYTES } = require('./utils/constants')
 const PORT = process.env.PORT || 8001;
 const app = express();
 
 app.use(fileUpload({
-    // add constants js , add filesize as constant
     limits: {
         fileSize: FIVE_HUNDRED_KILOBYTES,
         files: 96
@@ -26,8 +22,7 @@ app.use(fileUpload({
 app.use(express.static(__dirname));
 const bodyParser = require('body-parser');
 const expressSession = require('express-session')({
-    // PROCESS ENV SECRET THIS 
-    secret: 'secret',
+    secret: process.env.EXPRESS_SESSION_SECRET,
     resave: false,
     saveUninitialized: false
 });
@@ -38,8 +33,6 @@ app.use(expressSession);
 app.use(cors());
 app.use(passport.initialize());
 app.use(passport.session());
-app.use(cookieParser('secret'));
-app.use(flash());
 app.set('view engine', 'ejs');
 
 passport.use(new LocalStrategy(function (username, password, done) {
@@ -231,7 +224,6 @@ app.get('/images/:imageId.:ext', async function (req, res) {
     }
 })
 
-// should return IDs for that users particular images
 app.get('/user/:targetUser/images', async function (req, res) {
     let username = undefined;
     let role = undefined;
@@ -252,8 +244,6 @@ app.get('/user/:targetUser/images', async function (req, res) {
         res.status(500).send("500 INTERNAL SERVER ERROR")
     }
 });
-
-
 
 app.get('/upload', function (req, res) {
     doIfLoggedIn(req, res, () => res.render('pages/upload', {
