@@ -1,3 +1,4 @@
+const { valid } = require("joi");
 const Joi = require("joi");
 const { FIVE_HUNDRED_KILOBYTES } = require("./constants")
 const validate = {};
@@ -14,6 +15,15 @@ validate.verifyImage = (name, mimetype, size) => {
     }
 }
 
+const changePasswordSchema = Joi.object({
+    password: Joi.string().min(5).max(32).required()
+})
+
+validate.changePassword = (password) => {
+    const input = { password };
+    changePasswordSchema.validate(input);
+};
+
 const signupSchema = Joi.object({
     username: Joi.string().min(4).max(20).required(),
     email: Joi.string().email().required(),
@@ -24,5 +34,14 @@ validate.signUp = (username, email, password) => {
     const input = { username, email, password };
     signupSchema.validate(input);
 };
+
+const deleteSchema = Joi.object({
+    imageId: Joi.number().integer().required()
+})
+
+validate.delete = (imageId) => {
+    const input = { imageId };
+    deleteSchema.validate(input);
+}
 
 module.exports = validate;

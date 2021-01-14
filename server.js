@@ -115,8 +115,9 @@ app.post('/changepassword', async function (req, res) {
         res.redirect('/');
     } else {
         try {
+            const { password } = req.body;
+            validate.changePassword(password);
             const username = req.user.username;
-            const password = req.body.password;
             await db.changePassword(username, password);
             res.redirect(`/user/${username}?info=passwordupdated`)
         } catch (err) {
@@ -169,7 +170,7 @@ app.get('/logout', function (req, res) {
 app.get('/user/:targetUser', async function (req, res) {
     try {
         let userData = await db.findByUser(req.params.targetUser);
-        
+
         let imageIDs = req.user ? await db.getImagesByUser(
             req.params.targetUser,
             req.user.username,
@@ -307,11 +308,23 @@ app.post('/delete', function (req, res) {
             info: undefined
         });
     } else {
-        if(!req.body.imageId){res.send("No Images Selected")}
-        !req.body.imageId.length ? req.body.imageId: [req.body.imageId]
-        req.body.imageId.forEach(async (imageId) => {
-            await db.deleteImage(req.user, imageId);
-        })
+        try {
+            console.log("imageids", req.body.imageId)
+            const {imageId} = req.body;
+            validate.delete(imageId);
+            console.log("validation", validate.delete(req.body.imageId))
+            if (!req.body.imageId) { res.send("No Images Selected") }
+            let deletionIDs = Array.isArray(req.body.imageId) ? req.body.imageId : [req.body.imageId];
+            deletionIDs.forEach(async (imageId) => {
+                await db.deleteImage(req.user, imageId);
+            })
+            res.redirect(`/user/${req.user.username}`)
+        } catch (err) {
+            console.log(err)
+            res.status(400).send("400 BAD REQUEST");
+
+        }
+
     }
 });
 

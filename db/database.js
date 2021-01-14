@@ -3,7 +3,6 @@ const DBSOURCE = "db.sqlite";
 const pwdHash = require('./pwdHash');
 require('dotenv').config();
 
-
 const adminPwd = pwdHash.saltHashPassword(process.env.ADMIN_PWD);
 
 let db = new sqlite3.Database(DBSOURCE, (err) => {
@@ -201,13 +200,5 @@ dal.deleteImage = async (username, imageId) => {
         return err;
     }
 }
-
-db.all('SELECT * FROM users', function (err, row) {
-    console.log(row);
-})
-
-db.all('SELECT * FROM images', function (err, row) {
-    console.log(row);
-})
 
 module.exports = dal;
