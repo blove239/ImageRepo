@@ -3,28 +3,7 @@
 
 <head>
     <%- include('../partials/head'); %>
-        <style>
-            .img-container {
-                position: relative;
-                width: 100px;
-                height: 100px;
-                margin: 5px;
-            }
-
-            .checkbox {
-                position: relative;
-                top: -40px;
-                right: 2px;
-            }
-        </style>
-        <script>
-            function toggle(source) {
-                checkboxes = document.getElementsByName("imageId");
-                for (var i = 0, n = checkboxes.length; i < n; i++) {
-                    checkboxes[i].checked = source.checked;
-                }
-            }
-        </script>
+    <%- include('../partials/toggle'); %>
 </head>
 
 <body class="container">
@@ -37,36 +16,41 @@
         <div>
             <%if(query && query.info==='passwordupdated' ) {%>
                 <p>Password Successfully updated</p>
-                <%}%>
-                    <h1>
-                        <%=username%>'s profile
-                    </h1>
-                    <% if(user && username===user.username) { %>
-                        <p>
-                            <a class="link" href="/changepassword">Change your password</a>
-                        </p>
-                        <p>
-                            <a class="link" href="/upload">upload images</a>
-                        </p>
-                        <% } %>
+            <%}%>
+                <h1>
+                    <%=username%>'s profile
+                </h1>
+            <% if(user && username===user.username) { %>
+                <p>
+                    <a class="link" href="/changepassword">Change your password</a>
+                </p>
+                <p>
+                    <a class="link" href="/upload">upload images</a>
+                </p>
+            <% } %>
         </div>
-        <input type="checkbox" onClick="toggle(this)" /> Select/Deselect All<br />
-        <form  action="/delete" method="POST">
-            <div>
-                <button type="submit" class="btnz btn-warning">Delete Selection</button>
-            </div>
-
-            <% imageIDs.forEach((image)=> { %>
+        <% if (user && (user.role==='admin' || username===user.username)) {%>
+            <input type="checkbox" onClick="toggle(this)" /> Select/Deselect All<br />
+        <% } %>
+            <form action="/delete" method="POST">
+            <% if (user && (user.role==='admin' || username===user.username)) {%>
+                <div>
+                    <button type="submit" class="btn mb-3 btn-warning">Delete Selection</button>
+                </div>
+            <% } %>
+                <% imageIDs.forEach((image)=> { %>
                 <% let mimeToExt=new RegExp("^[^/]+/", "i" ) %>
-                    <% let ext=image.mimetype.replace(mimeToExt,"") %>
-                        <% ext=(ext==="jpeg" ) ? "jpg" : ext %>
-                            <span class="img-container">
-                                <a href="/images/<%= image.id %>.<%= ext %>">
-                                    <img style="width:100px" src="/images/<%= image.id %>.<%= ext %>" />
-                                </a>
-                                <input type="checkbox" class="checkbox" name="imageId" value=<%=image.id %> />
-                            </span>
-                            <% })%>
+                <% let ext=image.mimetype.replace(mimeToExt,"") %>
+                <% ext=(ext==="jpeg" ) ? "jpg" : ext %>
+                <span class="img-container">
+                <a href="/images/<%= image.id %>.<%= ext %>">
+                <img style="width:100px" src="/images/<%= image.id %>.<%= ext %>" />
+                </a>
+                <% if (user && (user.role==='admin' || username===user.username)) {%>
+                <input type="checkbox" class="checkbox" name="imageId" value=<%=image.id %> />
+               <% } %> 
+                </span>
+                <% })%>
         </form>
     </main>
 
