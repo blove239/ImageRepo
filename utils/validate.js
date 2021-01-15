@@ -1,11 +1,11 @@
-const Joi = require("joi");
-const { FIVE_HUNDRED_KILOBYTES } = require("./constants")
+const Joi = require('joi');
+const { FIVE_HUNDRED_KILOBYTES } = require('./constants')
 const validate = {};
 
 validate.verifyImage = (name, mimetype, size) => {
-    if (mimetype === "image/jpeg" ||
-        mimetype === "image/gif" ||
-        mimetype === "image/png") {
+    if (mimetype === 'image/jpeg' ||
+        mimetype === 'image/gif' ||
+        mimetype === 'image/png') {
     } else {
         throw new Error(`${name} must be of type jpg, gif OR png`)
     }

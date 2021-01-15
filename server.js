@@ -62,13 +62,13 @@ const doIfLoggedIn = (req, res, cb) => {
 
 const extToMimetype = (ext) => {
     if (ext === 'jpg') {
-        return "image/jpeg"
+        return 'image/jpeg'
     }
     if (ext === 'gif') {
-        return "image/gif"
+        return 'image/gif'
     }
     if (ext === 'png') {
-        return "image/png"
+        return 'image/png'
     }
     return undefined;
 };
@@ -102,12 +102,12 @@ app.post('/signup', async (req, res, next) => {
             const { username, email, password } = req.body;
             await validate.signUp(username, email, password);
             await db.signUp(username, email, password);
-            res.redirect("/login")
+            res.redirect('/login')
         } catch (err) {
             if (err.name && err.name === 'ValidationError') {
-                res.status(400).send("400 BAD REQUEST");
+                res.status(400).send('400 BAD REQUEST');
             } else {
-                res.redirect("/signup?error=uniqueconstraint");
+                res.redirect('/signup?error=uniqueconstraint');
             }
         }
     }
@@ -123,7 +123,7 @@ app.post('/changepassword', function (req, res) {
             res.redirect(`/user/${username}?info=passwordupdated`)
         } catch (err) {
             if (err.name && err.name === 'ValidationError') {
-                res.status(400).send("400 BAD REQUEST");
+                res.status(400).send('400 BAD REQUEST');
             } else {
                 // implement in front end
                 res.redirect(`/user/${username}?info=passwordupdatefailed`)
@@ -216,12 +216,12 @@ app.get('/images/:imageId.:ext', async function (req, res) {
         if (image && image.image) {
             res.set({ 'Content-Type': image.mimetype }).send(image.image)
         } else {
-            res.status(404).send("404 IMAGE NOT FOUND")
+            res.status(404).send('404 IMAGE NOT FOUND')
         }
     }
     catch (err) {
         console.log(err)
-        res.status(500).send("500 INTERNAL SERVER ERROR")
+        res.status(500).send('500 INTERNAL SERVER ERROR')
     }
 })
 
@@ -270,7 +270,7 @@ app.post('/upload', function (req, res) {
             }
         } catch (err) {
             console.log(err)
-            res.status(500).send("500 INTERNAL SERVER ERROR");
+            res.status(500).send('500 INTERNAL SERVER ERROR');
         }
     })
 });
@@ -286,9 +286,9 @@ app.post('/delete', function (req, res) {
             res.redirect(`/user/${req.user.username}`)
         } catch (err) {
             if (err.name && err.name === 'ValidationError') {
-                res.status(400).send("400 BAD REQUEST");
+                res.status(400).send('400 BAD REQUEST');
             } else {
-                res.status(500).send("500 INTERNAL SERVER ERROR");
+                res.status(500).send('500 INTERNAL SERVER ERROR');
             }
         }
     });

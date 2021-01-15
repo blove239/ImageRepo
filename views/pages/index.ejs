@@ -3,7 +3,7 @@
 
 <head>
     <%- include("../partials/head"); %>
-    <%- include('../partials/toggle'); %>
+    <%- include("../partials/toggle"); %>
 </head>
 
 <body class="container">
@@ -13,11 +13,11 @@
     </header>
 
     <main>
-        <% if (user && (user.role === 'admin')) {%>
+        <% if (user && (user.role === "admin")) {%>
             <input type="checkbox" onClick="toggle(this)" /> Select/Deselect All<br />
         <% } %>
             <form action="/delete" method="POST">
-            <% if (user && (user.role === 'admin')) {%>
+            <% if (user && (user.role === "admin")) {%>
                 <div>
                     <button type="submit" class="btn mb-3 btn-warning">Delete Selection</button>
                 </div>
@@ -30,18 +30,12 @@
                 <a href="/images/<%= image.id %>.<%= ext %>">
                 <img style="width:100px" src="/images/<%= image.id %>.<%= ext %>" />
                 </a>
-                <% if (user && (user.role==='admin')) {%>
+                <% if (user && (user.role==="admin")) {%>
                 <input type="checkbox" class="checkbox" name="imageId" value=<%=image.id %> />
                <% } %> 
                 </span>
                 <% })%>
         </form>
-
-
-
-
-
-      
     </main>
 
     <footer>

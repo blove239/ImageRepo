@@ -2,19 +2,19 @@
 <html lang="en">
 
 <head>
-    <%- include('../partials/head'); %>
-    <%- include('../partials/toggle'); %>
+    <%- include("../partials/head"); %>
+    <%- include("../partials/toggle"); %>
 </head>
 
 <body class="container">
 
     <header>
-        <%- include('../partials/header'); %>
+        <%- include("../partials/header"); %>
     </header>
 
     <main>
         <div>
-            <%if(query && query.info==='passwordupdated' ) {%>
+            <%if(query && query.info==="passwordupdated" ) {%>
                 <p>Password Successfully updated</p>
             <%}%>
                 <h1>
@@ -29,11 +29,11 @@
                 </p>
             <% } %>
         </div>
-        <% if (user && (user.role==='admin' || username===user.username)) {%>
+        <% if (user && (user.role==="admin" || username===user.username)) {%>
             <input type="checkbox" onClick="toggle(this)" /> Select/Deselect All<br />
         <% } %>
             <form action="/delete" method="POST">
-            <% if (user && (user.role==='admin' || username===user.username)) {%>
+            <% if (user && (user.role==="admin" || username===user.username)) {%>
                 <div>
                     <button type="submit" class="btn mb-3 btn-warning">Delete Selection</button>
                 </div>
@@ -46,7 +46,7 @@
                 <a href="/images/<%= image.id %>.<%= ext %>">
                 <img style="width:100px" src="/images/<%= image.id %>.<%= ext %>" />
                 </a>
-                <% if (user && (user.role==='admin' || username===user.username)) {%>
+                <% if (user && (user.role==="admin" || username===user.username)) {%>
                 <input type="checkbox" class="checkbox" name="imageId" value=<%=image.id %> />
                <% } %> 
                 </span>
@@ -55,7 +55,7 @@
     </main>
 
     <footer>
-        <%- include('../partials/footer'); %>
+        <%- include("../partials/footer"); %>
     </footer>
 
 </body>

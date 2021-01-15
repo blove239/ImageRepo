@@ -7,7 +7,7 @@
             const check = () => {
                 let input = document.getElementById("fileinput");
                 if (!input.files[0]) {
-                    document.getElementById("message").innerHTML = "Please select a file before clicking 'Upload'";
+                    document.getElementById("message").innerHTML = "Please select a file before clicking Upload";
                     return false;
                 }
                 else {
@@ -52,7 +52,7 @@
     </main>
 
     <footer>
-        <%- include('../partials/footer'); %>
+        <%- include("../partials/footer"); %>
     </footer>
 
 </body>

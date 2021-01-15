@@ -1,5 +1,5 @@
 const sqlite3 = require('sqlite3').verbose();
-const DBSOURCE = "db.sqlite";
+const DBSOURCE = 'db.sqlite';
 const pwdHash = require('./pwdHash');
 require('dotenv').config();
 
@@ -27,7 +27,7 @@ let db = new sqlite3.Database(DBSOURCE, (err) => {
                 } else {
                     // Table just created, creating some rows
                     let insert = 'INSERT INTO users (username, email, password, salt, role) VALUES (?,?,?,?,?)'
-                    db.run(insert, ["admin", "admin@example.com", adminPwd.passwordHash, adminPwd.salt, "admin"])
+                    db.run(insert, ['admin', 'admin@example.com', adminPwd.passwordHash, adminPwd.salt, 'admin'])
                 }
             });
 
