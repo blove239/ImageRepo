@@ -225,27 +225,6 @@ app.get('/images/:imageId.:ext', async function (req, res) {
     }
 })
 
-app.get('/user/:targetUser/images', async function (req, res) {
-    let username = undefined;
-    let role = undefined;
-    if (req.user) {
-        username = req.user.username
-        role = req.user.role
-    };
-    try {
-        let imageIDs = req.user ? await db.getImagesByUser(
-            req.params.targetUser,
-            req.user.username,
-            req.user.role)
-            : await db.getImagesByUser(req.params.targetUser);
-        res.send(imageIDs)
-    }
-    catch (err) {
-        console.log(err)
-        res.status(500).send("500 INTERNAL SERVER ERROR")
-    }
-});
-
 app.get('/upload', function (req, res) {
     doIfLoggedIn(req, res, () => res.render('pages/upload', {
         message: undefined,

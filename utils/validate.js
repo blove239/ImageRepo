@@ -1,4 +1,3 @@
-const { valid } = require("joi");
 const Joi = require("joi");
 const { FIVE_HUNDRED_KILOBYTES } = require("./constants")
 const validate = {};
