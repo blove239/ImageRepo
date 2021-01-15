@@ -19,9 +19,9 @@ const changePasswordSchema = Joi.object({
     password: Joi.string().min(5).max(32).required()
 })
 
-validate.changePassword = (password) => {
+validate.changePassword = async (password) => {
     const input = { password };
-    changePasswordSchema.validate(input);
+    await changePasswordSchema.validateAsync(input);
 };
 
 const signupSchema = Joi.object({
@@ -30,18 +30,18 @@ const signupSchema = Joi.object({
     password: Joi.string().min(5).max(32).required()
 });
 
-validate.signUp = (username, email, password) => {
+validate.signUp = async (username, email, password) => {
     const input = { username, email, password };
-    signupSchema.validate(input);
+    await signupSchema.validateAsync(input);
 };
 
 const deleteSchema = Joi.object({
-    imageId: Joi.number().integer().required()
+    imageId: Joi.array().items(Joi.number().integer().required())
 })
 
-validate.delete = (imageId) => {
-    const input = { imageId };
-    deleteSchema.validate(input);
+validate.delete = async (imageId) => {
+    const input = { imageId }
+    await deleteSchema.validateAsync(input);
 }
 
 module.exports = validate;

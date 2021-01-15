@@ -95,36 +95,41 @@ app.post('/login', (req, res, next) => {
 });
 
 app.post('/signup', async (req, res, next) => {
-    if (req.user !== undefined) {
+    if (req.user) {
         res.redirect(`/user/${req.body.username}`);
     } else {
         try {
             const { username, email, password } = req.body;
-            validate.signUp(username, email, password);
+            await validate.signUp(username, email, password);
             await db.signUp(username, email, password);
             res.redirect("/login")
         } catch (err) {
-            // IMPLEMENT THIS ON THE FRONT END
-            res.redirect("/signup?error=uniqueconstraint");
+            if (err.name && err.name === 'ValidationError') {
+                res.status(400).send("400 BAD REQUEST");
+            } else {
+                res.redirect("/signup?error=uniqueconstraint");
+            }
         }
     }
 });
 
-app.post('/changepassword', async function (req, res) {
-    if (req.user === undefined) {
-        res.redirect('/');
-    } else {
+app.post('/changepassword', function (req, res) {
+    doIfLoggedIn(req, res, async () => {
         try {
             const { password } = req.body;
-            validate.changePassword(password);
+            await validate.changePassword(password);
             const username = req.user.username;
             await db.changePassword(username, password);
             res.redirect(`/user/${username}?info=passwordupdated`)
         } catch (err) {
-            // implement in front end
-            res.redirect(`/user/${username}?info=passwordupdatefailed`)
+            if (err.name && err.name === 'ValidationError') {
+                res.status(400).send("400 BAD REQUEST");
+            } else {
+                // implement in front end
+                res.redirect(`/user/${username}?info=passwordupdatefailed`)
+            }
         }
-    }
+    })
 });
 
 app.get('/', async function (req, res) {
@@ -141,20 +146,15 @@ app.get('/', async function (req, res) {
 });
 
 app.get('/login', function (req, res) {
-    if (req.user === undefined) {
-        res.render('pages/login', {
-            user: req.user,
-            info: undefined
-        });
-    } else {
+    doIfLoggedIn(req, res, () => {
         res.redirect(`/users/${req.user.username}`)
-    }
+    });
 });
 
 app.get('/signup', function (req, res) {
     if (req.user === undefined) {
         res.render('pages/signup', {
-            user: req.user,
+            user: undefined,
             query: req.query
         });
     } else {
@@ -254,13 +254,8 @@ app.get('/upload', function (req, res) {
     }))
 })
 
-app.post('/upload', async function (req, res) {
-    if (req.user === undefined) {
-        res.render('pages/login', {
-            user: req.user,
-            info: undefined
-        });
-    } else {
+app.post('/upload', function (req, res) {
+    doIfLoggedIn(req, res, async () => {
         try {
             if (!req.files) {
                 res.render('pages/upload', {
@@ -298,34 +293,26 @@ app.post('/upload', async function (req, res) {
             console.log(err)
             res.status(500).send("500 INTERNAL SERVER ERROR");
         }
-    }
+    })
 });
 
 app.post('/delete', function (req, res) {
-    if (req.user === undefined) {
-        res.render('pages/login', {
-            user: req.user,
-            info: undefined
-        });
-    } else {
+    doIfLoggedIn(req, res, async () => {
+        let deletionIdArray = Array.isArray(req.body.imageId) ? req.body.imageId : [req.body.imageId];
         try {
-            console.log("imageids", req.body.imageId)
-            const {imageId} = req.body;
-            validate.delete(imageId);
-            console.log("validation", validate.delete(req.body.imageId))
-            if (!req.body.imageId) { res.send("No Images Selected") }
-            let deletionIDs = Array.isArray(req.body.imageId) ? req.body.imageId : [req.body.imageId];
-            deletionIDs.forEach(async (imageId) => {
+            await validate.delete(deletionIdArray);
+            deletionIdArray.forEach(async (imageId) => {
                 await db.deleteImage(req.user, imageId);
             })
             res.redirect(`/user/${req.user.username}`)
         } catch (err) {
-            console.log(err)
-            res.status(400).send("400 BAD REQUEST");
-
+            if (err.name && err.name === 'ValidationError') {
+                res.status(400).send("400 BAD REQUEST");
+            } else {
+                res.status(500).send("500 INTERNAL SERVER ERROR");
+            }
         }
-
-    }
+    });
 });
 
 app.listen(PORT, () => console.log('App listening on port ' + PORT));
