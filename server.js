@@ -4,6 +4,7 @@ const LocalStrategy = require('passport-local').Strategy;
 const cors = require('cors');
 const ejs = require('ejs');
 const fileUpload = require('express-fileupload');
+const morgan = require('morgan');
 const db = require('./db/database');
 const pwdHash = require('./db/pwdHash');
 const validate = require('./utils/validate');
@@ -34,6 +35,17 @@ app.use(cors());
 app.use(passport.initialize());
 app.use(passport.session());
 app.set('view engine', 'ejs');
+
+function matchRuleShort(str, rule) {
+    let escapeRegex = (str) => str.replace(/([.*+?^=!:${}()|\[\]\/\\])/g, "\\$1");
+    return new RegExp("^" + rule.split("*").map(escapeRegex).join(".*") + "$").test(str);
+  }
+
+app.use(
+    morgan(':method :url :status :res[content-length] - :response-time ms', {
+        skip: (req, res) => matchRuleShort(req.url, "/images/*")
+      })
+);
 
 passport.use(new LocalStrategy(function (username, password, done) {
     db.authUser(username, password, done);
