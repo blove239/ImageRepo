@@ -1,6 +1,6 @@
 const sqlite3 = require('sqlite3').verbose();
 const DBSOURCE = 'db.sqlite';
-const pwdHash = require('./pwdHash');
+const pwdHash = require('../utils/pwdHash');
 require('dotenv').config();
 
 const adminPwd = pwdHash.saltHashPassword(process.env.ADMIN_PWD);

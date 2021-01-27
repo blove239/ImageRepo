@@ -2,11 +2,9 @@ const express = require('express');
 const passport = require('passport');
 const LocalStrategy = require('passport-local').Strategy;
 const cors = require('cors');
-const ejs = require('ejs');
 const fileUpload = require('express-fileupload');
 const morgan = require('morgan');
 const db = require('./db/database');
-const pwdHash = require('./db/pwdHash');
 const validate = require('./utils/validate');
 require('dotenv').config()
 const { FIVE_HUNDRED_KILOBYTES } = require('./utils/constants')
@@ -31,10 +29,16 @@ const expressSession = require('express-session')({
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(expressSession);
-app.use(cors());
 app.use(passport.initialize());
 app.use(passport.session());
 app.set('view engine', 'ejs');
+
+const corsOptions = {
+    origin: 'https://imagerepo.brandonlove.ca',
+    optionsSuccessStatus: 200
+  }
+
+app.use(cors(corsOptions));
 
 function matchRuleShort(str, rule) {
     let escapeRegex = (str) => str.replace(/([.*+?^=!:${}()|\[\]\/\\])/g, "\\$1");
@@ -85,6 +89,56 @@ const extToMimetype = (ext) => {
     return undefined;
 };
 
+app.get('/', async function (req, res) {
+    let imageIDs = req.user ?
+        await db.getImageIDs(
+            req.user.username,
+            req.user.role)
+        : await db.getImageIDs();
+
+    res.render('pages/index', {
+        user: req.user,
+        imageIDs: imageIDs
+    });
+});
+
+app.get('/signup', function (req, res) {
+    if (req.user === undefined) {
+        res.render('pages/signup', {
+            user: undefined,
+            query: req.query
+        });
+    } else {
+        res.redirect(`/user/${req.user.username}`);
+    }
+});
+
+app.post('/signup', async (req, res) => {
+    if (req.user) {
+        res.redirect(`/user/${req.body.username}`);
+    } else {
+        try {
+            const { username, email, password } = req.body;
+            await validate.signUp(username, email, password);
+            await db.signUp(username, email, password);
+            res.redirect('/login');
+        } catch (err) {
+            if (err.name && err.name === 'ValidationError') {
+                res.status(400).send('400 BAD REQUEST');
+            } else {
+                res.redirect('/signup?error=uniqueconstraint');
+            }
+        }
+    }
+});
+
+
+app.get('/login', function (req, res) {
+    doIfLoggedIn(req, res, () => {
+        res.redirect(`/users/${req.user.username}`);
+    });
+});
+
 app.post('/login', (req, res, next) => {
     passport.authenticate('local',
         (err, user, info) => {
@@ -106,22 +160,13 @@ app.post('/login', (req, res, next) => {
         })(req, res, next);
 });
 
-app.post('/signup', async (req, res, next) => {
-    if (req.user) {
-        res.redirect(`/user/${req.body.username}`);
+app.get('/changepassword', function (req, res) {
+    if (req.user === undefined) {
+        res.redirect('/');
     } else {
-        try {
-            const { username, email, password } = req.body;
-            await validate.signUp(username, email, password);
-            await db.signUp(username, email, password);
-            res.redirect('/login')
-        } catch (err) {
-            if (err.name && err.name === 'ValidationError') {
-                res.status(400).send('400 BAD REQUEST');
-            } else {
-                res.redirect('/signup?error=uniqueconstraint');
-            }
-        }
+        res.render('pages/changepassword', {
+            user: req.user
+        });
     }
 });
 
@@ -132,51 +177,16 @@ app.post('/changepassword', function (req, res) {
             await validate.changePassword(password);
             const username = req.user.username;
             await db.changePassword(username, password);
-            res.redirect(`/user/${username}?info=passwordupdated`)
+            res.redirect(`/user/${username}?info=passwordupdated`);
         } catch (err) {
             if (err.name && err.name === 'ValidationError') {
                 res.status(400).send('400 BAD REQUEST');
             } else {
-                // implement in front end
-                res.redirect(`/user/${username}?info=passwordupdatefailed`)
+                console.log(err);
+                res.status(500).send('500 INTERNAL SERVER ERROR');
             }
         }
-    })
-});
-
-app.get('/', async function (req, res) {
-    let imageIDs = req.user ?
-        await db.getImageIDs(
-            req.user.username,
-            req.user.role)
-        : await db.getImageIDs();
-
-    res.render('pages/index', {
-        user: req.user,
-        imageIDs: imageIDs
     });
-});
-
-app.get('/login', function (req, res) {
-    doIfLoggedIn(req, res, () => {
-        res.redirect(`/users/${req.user.username}`)
-    });
-});
-
-app.get('/signup', function (req, res) {
-    if (req.user === undefined) {
-        res.render('pages/signup', {
-            user: undefined,
-            query: req.query
-        });
-    } else {
-        res.redirect(`/user/${req.user.username}`)
-    }
-});
-
-app.get('/logout', function (req, res) {
-    req.logout();
-    res.redirect('/');
 });
 
 app.get('/user/:targetUser', async function (req, res) {
@@ -197,21 +207,9 @@ app.get('/user/:targetUser', async function (req, res) {
         });
     } catch (err) {
         console.log(err)
-        // implement naming the unfound profile
-        // on the front end
         res.render('pages/profilenotfound', {
             user: req.user,
-            targetUser: req.params.username
-        })
-    }
-});
-
-app.get('/changepassword', function (req, res) {
-    if (req.user === undefined) {
-        res.redirect('/');
-    } else {
-        res.render('pages/changepassword', {
-            user: req.user
+            targetUser: req.params.targetUser
         });
     }
 });
@@ -224,26 +222,26 @@ app.get('/images/:imageId.:ext', async function (req, res) {
                 extToMimetype(req.params.ext),
                 req.user.username,
                 req.user.role)
-            : await db.getImage(req.params.imageId, extToMimetype(req.params.ext))
+            : await db.getImage(req.params.imageId, extToMimetype(req.params.ext));
         if (image && image.image) {
-            res.set({ 'Content-Type': image.mimetype }).send(image.image)
+            res.set({ 'Content-Type': image.mimetype }).send(image.image);
         } else {
-            res.status(404).send('404 IMAGE NOT FOUND')
+            res.status(404).send('404 IMAGE NOT FOUND');
         }
     }
     catch (err) {
         console.log(err)
         res.status(500).send('500 INTERNAL SERVER ERROR')
     }
-})
+});
 
 app.get('/upload', function (req, res) {
     doIfLoggedIn(req, res, () => res.render('pages/upload', {
         message: undefined,
         user: req.user,
         status: []
-    }))
-})
+    }));
+});
 
 app.post('/upload', function (req, res) {
     doIfLoggedIn(req, res, async () => {
@@ -266,12 +264,12 @@ app.post('/upload', function (req, res) {
                             .then(status.push({
                                 status: true,
                                 message: `${image.name} uploaded successfully`
-                            }))
+                            }));
                     } catch (err) {
                         status.push({
                             status: false,
                             message: err.message
-                        })
+                        });
                     }
                 });
                 res.render('pages/upload', {
@@ -281,10 +279,10 @@ app.post('/upload', function (req, res) {
                 });
             }
         } catch (err) {
-            console.log(err)
+            console.log(err);
             res.status(500).send('500 INTERNAL SERVER ERROR');
         }
-    })
+    });
 });
 
 app.post('/delete', function (req, res) {
@@ -294,8 +292,8 @@ app.post('/delete', function (req, res) {
             await validate.delete(deletionIdArray);
             deletionIdArray.forEach(async (imageId) => {
                 await db.deleteImage(req.user, imageId);
-            })
-            res.redirect(`/user/${req.user.username}`)
+            });
+            res.redirect(`/user/${req.user.username}`);
         } catch (err) {
             if (err.name && err.name === 'ValidationError') {
                 res.status(400).send('400 BAD REQUEST');
@@ -304,6 +302,11 @@ app.post('/delete', function (req, res) {
             }
         }
     });
+});
+
+app.get('/logout', function (req, res) {
+    req.logout();
+    res.redirect('/');
 });
 
 app.listen(PORT, () => console.log('App listening on port ' + PORT));
